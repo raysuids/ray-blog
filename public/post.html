@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title id="t">文章 · Ray</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+  <script type="module">
+    const $ = (s)=>document.querySelector(s);
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const titleEl = document.getElementById('t');
+    const bodyEl = document.getElementById('body');
+    const metaEl = document.getElementById('meta');
+    const listEl = document.getElementById('comments');
+    const form = document.getElementById('cform');
+
+    const admin = {
+      get token(){ return localStorage.getItem('admin_token') || ''; },
+      get isAuthed(){ return !!localStorage.getItem('admin_token'); }
+    };
+
+    async function load() {
+      const r = await fetch(`/api/posts/${id}`);
+      if(!r.ok){ bodyEl.textContent = '找不到文章'; return; }
+      const d = await r.json();
+      titleEl.textContent = d.title + ' · Ray';
+      $('#h').textContent = d.title;
+      metaEl.textContent = new Date(d.created_at).toLocaleString();
+      bodyEl.innerHTML = (d.content||'').replace(/\n/g,'<br/>');
+      if(admin.isAuthed){
+        const bar = document.getElementById('admin-bar');
+        bar.classList.remove('hide');
+        document.getElementById('edit-btn').onclick = ()=>{
+          const t = prompt('新標題', d.title);
+          if(t===null) return;
+          const c = prompt('新內容', d.content);
+          if(c===null) return;
+          updatePost(t, c);
+        };
+        document.getElementById('del-btn').onclick = ()=>{
+          if(confirm('確定刪除這篇文章？')) delPost();
+        };
+      }
+      await loadComments();
+    }
+
+    async function updatePost(title, content){
+      const r = await fetch(`/api/posts/${id}`,{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','x-admin-token': admin.token},
+        body: JSON.stringify({title, content})
+      });
+      if(!r.ok){ alert('更新失敗'); return; }
+      location.reload();
+    }
+    async function delPost(){
+      const r = await fetch(`/api/posts/${id}`,{ method:'DELETE', headers:{'x-admin-token': admin.token} });
+      if(!r.ok){ alert('刪除失敗'); return; }
+      location.href = '/';
+    }
+
+    async function loadComments(){
+      const r = await fetch(`/api/comments?post_id=${id}`);
+      const {items=[]} = await r.json();
+      listEl.innerHTML = items.map(c => \`
+        <li class="comment" data-animate>
+          <div class="comment-meta">\${c.author || '訪客'} · \${new Date(c.created_at).toLocaleString()}</div>
+          <div class="comment-body">\${(c.body||'').replace(/</g,'&lt;')}</div>
+          \${admin.isAuthed ? '<button class="mini danger" data-del="'+c.id+'">刪除</button>' : ''}
+        </li>\`
+      ).join('') || '<li>暫無留言</li>';
+
+      if(admin.isAuthed){
+        document.querySelectorAll('[data-del]').forEach(btn=>{
+          btn.addEventListener('click', async ()=>{
+            if(!confirm('刪除此留言？')) return;
+            const cid = btn.getAttribute('data-del');
+            const rr = await fetch('/api/comments/'+cid,{ method:'DELETE', headers:{'x-admin-token': admin.token} });
+            if(rr.ok) loadComments(); else alert('刪除失敗');
+          });
+        });
+      }
+
+      const els = document.querySelectorAll('[data-animate]');
+      const io = new IntersectionObserver((entries)=>{
+        entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); } });
+      },{threshold:0.1});
+      els.forEach(el=>io.observe(el));
+    }
+
+    form?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(form);
+      const payload = Object.fromEntries(fd.entries());
+      payload.post_id = id;
+      const r = await fetch('/api/comments',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if(!r.ok){ alert('留言失敗'); return; }
+      form.reset();
+      await loadComments();
+    });
+
+    load();
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">R</a>
+    </div>
+  </header>
+  <main class="container">
+    <div id="admin-bar" class="admin-bar hide">
+      <button id="edit-btn" class="mini">編輯</button>
+      <button id="del-btn" class="mini danger">刪除</button>
+    </div>
+    <article class="post card">
+      <h2 id="h" class="post-title" data-animate>載入中…</h2>
+      <div id="meta" class="post-meta"></div>
+      <div id="body" class="post-body"></div>
+    </article>
+
+    <section class="comments">
+      <h3>留言</h3>
+      <ul id="comments" class="comment-list"></ul>
+      <form id="cform" class="card">
+        <label>暱稱 <input name="author" placeholder="匿名"></label>
+        <label>內容 <textarea name="body" required placeholder="寫點什麼吧…"></textarea></label>
+        <button type="submit">發表</button>
+      </form>
+    </section>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p>© <span id="y"></span> Ray</p>
+    </div>
+  </footer>
+</body>
+</html>

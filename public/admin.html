@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>管理後台 · Ray</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+  <script type="module">
+    const $ = (s)=>document.querySelector(s);
+    const listEl = $('#list');
+    const form = $('#form');
+    const logoutBtn = $('#logout');
+    const tokenInp = $('#token');
+    const newBtn = $('#new');
+    const statusEl = $('#status');
+    const idInp = $('#id');
+    const titleInp = $('#title');
+    const bodyInp = $('#content');
+    const keyInp = $('#key');
+
+    function setStatus(t){ statusEl.textContent = t; }
+    function setAuthed(yes){ document.body.classList.toggle('authed', !!yes); }
+
+    async function login(){
+      const key = keyInp.value.trim();
+      if(!key) return alert('請輸入管理金鑰');
+      const r = await fetch('/admin/login',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key }) });
+      if(!r.ok){ alert('金鑰不正確'); return; }
+      const { token } = await r.json();
+      localStorage.setItem('admin_token', token);
+      tokenInp.value = token;
+      setAuthed(true);
+      loadList();
+    }
+
+    async function verify(){
+      const t = localStorage.getItem('admin_token') || '';
+      if(!t) return setAuthed(false);
+      const r = await fetch('/admin/verify', { headers: { 'x-admin-token': t }});
+      if(r.ok){ tokenInp.value = t; setAuthed(true); loadList(); }
+      else setAuthed(false);
+    }
+
+    async function loadList(){
+      setStatus('載入文章…');
+      const r = await fetch('/api/posts?page=1&page_size=100');
+      const d = await r.json().catch(()=>({items:[]}));
+      listEl.innerHTML = (d.items||[]).map(p=>`
+        <li class="row">
+          <span class="title">${p.title}</span>
+          <span class="time">${new Date(p.created_at).toLocaleString()}</span>
+          <span class="ops">
+            <a href="/post.html?id=${p.id}" target="_blank">查看</a>
+            <button data-edit="${p.id}" class="mini">編輯</button>
+            <button data-del="${p.id}" class="mini danger">刪除</button>
+          </span>
+        </li>
+      `).join('') || '<li class="row">暫無文章</li>';
+      listEl.querySelectorAll('[data-edit]').forEach(b=>b.onclick = ()=>edit(b.getAttribute('data-edit')));
+      listEl.querySelectorAll('[data-del]').forEach(b=>b.onclick = ()=>del(b.getAttribute('data-del')));
+      setStatus('');
+    }
+
+    async function edit(id){
+      setStatus('讀取文章…');
+      const r = await fetch('/api/posts/'+id);
+      const d = await r.json();
+      idInp.value = d.id;
+      titleInp.value = d.title;
+      bodyInp.value = d.content;
+      setStatus('');
+    }
+
+    async function del(id){
+      if(!confirm('確定刪除此文章？')) return;
+      setStatus('刪除中…');
+      const t = localStorage.getItem('admin_token') || '';
+      const r = await fetch('/api/posts/'+id, { method:'DELETE', headers:{'x-admin-token': t} });
+      if(!r.ok){ alert('刪除失敗'); setStatus(''); return; }
+      idInp.value = titleInp.value = bodyInp.value = '';
+      await loadList();
+      setStatus('已刪除');
+      setTimeout(()=>setStatus(''), 800);
+    }
+
+    newBtn.addEventListener('click', ()=>{
+      idInp.value = ''; titleInp.value = ''; bodyInp.value = ''; titleInp.focus();
+    });
+
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const t = localStorage.getItem('admin_token') || '';
+      const id = idInp.value.trim();
+      const title = titleInp.value.trim();
+      const content = bodyInp.value.trim();
+      if(!title || !content) return alert('請完整輸入');
+      setStatus('保存中…');
+      if(id){
+        const r = await fetch('/api/posts/'+id, { method:'PUT', headers:{'Content-Type':'application/json','x-admin-token': t}, body: JSON.stringify({ title, content }) });
+        if(!r.ok){ alert('更新失敗'); setStatus(''); return; }
+      }else{
+        const r = await fetch('/api/posts', { method:'POST', headers:{'Content-Type':'application/json','x-admin-token': t}, body: JSON.stringify({ title, content }) });
+        if(!r.ok){ alert('發佈失敗'); setStatus(''); return; }
+      }
+      await loadList();
+      setStatus('已保存');
+      setTimeout(()=>setStatus(''), 800);
+    });
+
+    logoutBtn.addEventListener('click', ()=>{
+      localStorage.removeItem('admin_token'); setAuthed(false);
+    });
+
+    document.getElementById('loginBtn').addEventListener('click', login);
+    verify();
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">R</a>
+    </div>
+  </header>
+
+  <main class="container admin">
+    <section id="login" class="card login-panel">
+      <h2>登入後台</h2>
+      <label>管理金鑰
+        <input id="key" placeholder="部署時設定的 ADMIN_KEY" />
+      </label>
+      <button id="loginBtn">登入</button>
+      <p class="muted">成功後會獲取管理 Token（有效期 24 小時）。</p>
+    </section>
+
+    <section class="card dashboard">
+      <div class="topbar">
+        <div>
+          <button id="new" class="mini">新文章</button>
+          <span id="status" class="muted"></span>
+        </div>
+        <div class="token-box">
+          <input id="token" class="mono" readonly placeholder="管理 token" />
+          <button id="logout" class="mini">登出</button>
+        </div>
+      </div>
+
+      <div class="flex">
+        <div class="left">
+          <ul id="list" class="list"></ul>
+        </div>
+        <div class="right">
+          <form id="form">
+            <input id="id" type="hidden" />
+            <label>標題 <input id="title" required /></label>
+            <label>內容 <textarea id="content" rows="14" required></textarea></label>
+            <button id="save" type="submit">保存</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
