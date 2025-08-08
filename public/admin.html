@@ -16,11 +16,13 @@
     const idInp = $('#id');
     const titleInp = $('#title');
     const bodyInp = $('#content');
+    const coverInp = $('#cover_url');
     const keyInp = $('#key');
 
     // settings
     const sTitle = $('#s_title');
     const sSubtitle = $('#s_subtitle');
+    const sHero = $('#s_hero');
     const sSave = $('#s_save');
 
     function setStatus(t){ statusEl.textContent = t; }
@@ -73,6 +75,7 @@
       idInp.value = d.id;
       titleInp.value = d.title;
       bodyInp.value = d.content;
+      coverInp.value = d.cover_url || '';
       setStatus('');
     }
 
@@ -82,14 +85,14 @@
       const t = localStorage.getItem('admin_token') || '';
       const r = await fetch('/api/posts/'+id, { method:'DELETE', headers:{'x-admin-token': t} });
       if(!r.ok){ alert('刪除失敗'); setStatus(''); return; }
-      idInp.value = titleInp.value = bodyInp.value = '';
+      idInp.value = titleInp.value = bodyInp.value = coverInp.value = '';
       await loadList();
       setStatus('已刪除');
       setTimeout(()=>setStatus(''), 800);
     }
 
     newBtn.addEventListener('click', ()=>{
-      idInp.value = ''; titleInp.value = ''; bodyInp.value = ''; titleInp.focus();
+      idInp.value = ''; titleInp.value = ''; bodyInp.value = ''; coverInp.value=''; titleInp.focus();
     });
 
     form.addEventListener('submit', async (e)=>{
@@ -98,13 +101,14 @@
       const id = idInp.value.trim();
       const title = titleInp.value.trim();
       const content = bodyInp.value.trim();
+      const cover_url = coverInp.value.trim();
       if(!title || !content) return alert('請完整輸入');
       setStatus('保存中…');
       if(id){
-        const r = await fetch('/api/posts/'+id, { method:'PUT', headers:{'Content-Type':'application/json','x-admin-token': t}, body: JSON.stringify({ title, content }) });
+        const r = await fetch('/api/posts/'+id, { method:'PUT', headers:{'Content-Type':'application/json','x-admin-token': t}, body: JSON.stringify({ title, content, cover_url }) });
         if(!r.ok){ alert('更新失敗'); setStatus(''); return; }
       }else{
-        const r = await fetch('/api/posts', { method:'POST', headers:{'Content-Type':'application/json','x-admin-token': t}, body: JSON.stringify({ title, content }) });
+        const r = await fetch('/api/posts', { method:'POST', headers:{'Content-Type':'application/json','x-admin-token': t}, body: JSON.stringify({ title, content, cover_url }) });
         if(!r.ok){ alert('發佈失敗'); setStatus(''); return; }
       }
       await loadList();
@@ -117,11 +121,12 @@
       const d = await r.json().catch(()=>({}));
       sTitle.value = d.site_title || '我的部落格';
       sSubtitle.value = d.site_subtitle || '分享想法與記錄';
+      sHero.value = d.hero_image || '';
     }
 
     sSave.addEventListener('click', async ()=>{
       const t = localStorage.getItem('admin_token') || '';
-      const payload = { site_title: sTitle.value.trim(), site_subtitle: sSubtitle.value.trim() };
+      const payload = { site_title: sTitle.value.trim(), site_subtitle: sSubtitle.value.trim(), hero_image: sHero.value.trim() };
       const r = await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json','x-admin-token': t}, body: JSON.stringify(payload) });
       if(!r.ok){ alert('保存失敗'); return; }
       alert('已保存');
@@ -177,6 +182,7 @@
             <input id="id" type="hidden" />
             <label>標題 <input id="title" required /></label>
             <label>內容 <textarea id="content" rows="14" required></textarea></label>
+            <label>封面圖片 URL（選填） <input id="cover_url" placeholder="https://..."></label>
             <button id="save" type="submit">保存</button>
           </form>
         </div>
@@ -187,8 +193,9 @@
         <h3>站點設定</h3>
         <label>站點標題 <input id="s_title" placeholder="我的部落格" /></label>
         <label>站點副標題 <input id="s_subtitle" placeholder="分享想法與記錄" /></label>
+        <label>首頁圖片 URL（顯示在標題下） <input id="s_hero" placeholder="https://..."></label>
         <button id="s_save">保存設定</button>
-        <p class="muted">首頁的大標題與副標題會從資料庫讀取。</p>
+        <p class="muted">首頁標題/副標題將居中顯示；若填了圖片 URL，將顯示在其下方。</p>
       </div>
 
     </section>

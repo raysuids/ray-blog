@@ -1,14 +1,6 @@
-name = "ray-blog-pages-v2"
+name = "ray-blog-pages-v2-2"
 compatibility_date = "2025-08-08"
 
 [pages]
 # Output directory: public
 # Functions directory: functions
-
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "ray_blog_db"
-# database_id = "填你的 D1 database_id"
-
-# [vars]
-# ADMIN_KEY = "請填你的管理金鑰"

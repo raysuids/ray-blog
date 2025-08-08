@@ -8,20 +8,21 @@
   <script type="module">
     const $ = (s)=>document.querySelector(s);
     function getId(){
-      const p = new URLSearchParams(location.search).get('id');
-      if(p) return p;
-      const hash = new URLSearchParams(location.hash.replace(/^#/, '')).get('id');
-      if(hash) return hash;
-      const m = location.pathname.match(/post\.html\/(.+)$/);
-      return m ? m[1] : null;
+      const url = new URL(location.href);
+      const p = url.searchParams.get('id'); if(p) return p;
+      const h = new URLSearchParams(url.hash.replace(/^#/, '')).get('id'); if(h) return h;
+      const m = location.pathname.match(/post\.html\/?(\?id=)?([^?]+)$/); if(m) return m[2];
+      return null;
     }
     const id = getId();
     const titleEl = $('#t');
     const hEl = $('#h');
     const bodyEl = $('#body');
     const metaEl = $('#meta');
+    const coverEl = $('#cover');
     const listEl = $('#comments');
     const form = $('#cform');
+    const adminBar = $('#admin-bar');
 
     const admin = {
       get token(){ return localStorage.getItem('admin_token') || ''; },
@@ -37,69 +38,66 @@
         titleEl.textContent = d.title + ' · Ray';
         hEl.textContent = d.title;
         metaEl.textContent = new Date(d.created_at).toLocaleString();
+        coverEl.style.display = d.cover_url ? '' : 'none';
+        if(d.cover_url) coverEl.src = d.cover_url;
         bodyEl.innerHTML = (d.content||'').replace(/</g,'&lt;').replace(/\n/g,'<br/>');
+
         if(admin.isAuthed){
-          const bar = document.getElementById('admin-bar');
-          bar.classList.remove('hide');
-          document.getElementById('edit-btn').onclick = ()=>{
-            const t = prompt('新標題', d.title);
-            if(t===null) return;
-            const c = prompt('新內容', d.content);
-            if(c===null) return;
-            updatePost(t, c);
+          adminBar.classList.remove('hide');
+          document.getElementById('edit-btn').onclick = async ()=>{
+            const t = prompt('新標題', d.title); if(t===null) return;
+            const c = prompt('新內容', d.content); if(c===null) return;
+            const u = prompt('封面圖片 URL（可留空）', d.cover_url||''); if(u===null) return;
+            const rr = await fetch(`/api/posts/${id}`,{
+              method:'PUT',
+              headers:{'Content-Type':'application/json','x-admin-token': admin.token},
+              body: JSON.stringify({ title:t, content:c, cover_url:u })
+            });
+            if(rr.ok) location.reload(); else alert('更新失敗');
           };
-          document.getElementById('del-btn').onclick = ()=>{
-            if(confirm('確定刪除這篇文章？')) delPost();
+          document.getElementById('del-btn').onclick = async ()=>{
+            if(!confirm('確定刪除這篇文章？')) return;
+            const rr = await fetch(`/api/posts/${id}`,{ method:'DELETE', headers:{'x-admin-token': admin.token} });
+            if(rr.ok) location.href = '/'; else alert('刪除失敗');
           };
         }
         await loadComments();
       }catch(e){
+        console.error(e);
         bodyEl.textContent = '載入失敗，稍後再試';
       }
     }
 
-    async function updatePost(title, content){
-      const r = await fetch(`/api/posts/${id}`,{
-        method:'PUT',
-        headers:{'Content-Type':'application/json','x-admin-token': admin.token},
-        body: JSON.stringify({title, content})
-      });
-      if(!r.ok){ alert('更新失敗'); return; }
-      location.reload();
-    }
-    async function delPost(){
-      const r = await fetch(`/api/posts/${id}`,{ method:'DELETE', headers:{'x-admin-token': admin.token} });
-      if(!r.ok){ alert('刪除失敗'); return; }
-      location.href = '/';
-    }
-
     async function loadComments(){
-      const r = await fetch(`/api/comments?post_id=${id}`);
-      const {items=[]} = await r.json();
-      listEl.innerHTML = items.map(c => \`
-        <li class="comment" data-animate>
-          <div class="comment-meta">\${c.author || '訪客'} · \${new Date(c.created_at).toLocaleString()}</div>
-          <div class="comment-body">\${(c.body||'').replace(/</g,'&lt;')}</div>
-          \${admin.isAuthed ? '<button class="mini danger" data-del="'+c.id+'">刪除</button>' : ''}
-        </li>\`
-      ).join('') || '<li class="muted">暫無留言</li>';
-
-      if(admin.isAuthed){
-        document.querySelectorAll('[data-del]').forEach(btn=>{
-          btn.addEventListener('click', async ()=>{
-            if(!confirm('刪除此留言？')) return;
-            const cid = btn.getAttribute('data-del');
-            const rr = await fetch('/api/comments/'+cid,{ method:'DELETE', headers:{'x-admin-token': admin.token} });
-            if(rr.ok) loadComments(); else alert('刪除失敗');
+      try{
+        const r = await fetch(`/api/comments?post_id=${encodeURIComponent(id)}`);
+        const d = await r.json().catch(()=>({items:[]}));
+        listEl.innerHTML = (d.items||[]).map(c => \`
+          <li class="comment" data-animate>
+            <div class="comment-meta">\${c.author || '訪客'} · \${new Date(c.created_at).toLocaleString()}</div>
+            <div class="comment-body">\${(c.body||'').replace(/</g,'&lt;')}</div>
+            \${admin.isAuthed ? '<button class="mini danger" data-del="'+c.id+'">刪除</button>' : ''}
+          </li>\`
+        ).join('') || '<li class="muted">暫無留言</li>';
+        if(admin.isAuthed){
+          document.querySelectorAll('[data-del]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              if(!confirm('刪除此留言？')) return;
+              const cid = btn.getAttribute('data-del');
+              const rr = await fetch('/api/comments/'+cid,{ method:'DELETE', headers:{'x-admin-token': admin.token} });
+              if(rr.ok) loadComments(); else alert('刪除失敗');
+            };
           });
-        });
+        }
+        const els = document.querySelectorAll('[data-animate]');
+        const io = new IntersectionObserver((entries)=>{
+          entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); } });
+        },{threshold:0.1});
+        els.forEach(el=>io.observe(el));
+      }catch(e){
+        console.error(e);
+        listEl.innerHTML = '<li class="muted">讀取留言失敗</li>';
       }
-
-      const els = document.querySelectorAll('[data-animate]');
-      const io = new IntersectionObserver((entries)=>{
-        entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); } });
-      },{threshold:0.1});
-      els.forEach(el=>io.observe(el));
     }
 
     form?.addEventListener('submit', async (e)=>{
@@ -136,6 +134,7 @@
       <button id="del-btn" class="mini danger">刪除</button>
     </div>
     <article class="post card">
+      <img id="cover" class="post-cover" alt="" style="display:none"/>
       <h2 id="h" class="post-title" data-animate>載入中…</h2>
       <div id="meta" class="post-meta"></div>
       <div id="body" class="post-body"></div>

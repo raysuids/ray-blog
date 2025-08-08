@@ -31,15 +31,17 @@ body{ margin:0; font:16px/1.7 ui-sans-serif, system-ui, "PingFang TC","Microsoft
 }
 
 .hero{margin-top:16px}
+.hero.center{ text-align:center }
 .hero-title{font-size:34px;margin:.2em 0}
 .hero-subtitle{color:#475569; margin-top:6px}
+.hero-image{margin-top:10px; max-width:100%; height:auto; border-radius:12px; border:1px solid var(--line)}
 
 .grid{display:grid; gap:18px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); margin-top:14px}
 .post-card{cursor:pointer; transition: transform .2s ease, box-shadow .2s ease}
 .post-card:hover{ transform:translateY(-3px); box-shadow:0 12px 40px rgba(2,6,23,.08) }
 .post-title{font-size:20px;margin:0 0 6px}
 .post-meta{color:#64748b; font-size:13px}
-.post-excerpt{color:#334155}
+.post-cover{width:100%; height:auto; max-height:220px; object-fit:cover; border-radius:12px; border:1px solid var(--line); margin:10px 0}
 
 .pager{display:flex; gap:12px; justify-content:flex-start; margin:16px 0}
 .pager button{
@@ -56,7 +58,7 @@ body{ margin:0; font:16px/1.7 ui-sans-serif, system-ui, "PingFang TC","Microsoft
 label{display:block; margin:10px 0; color:#334155}
 input, textarea, button{
   width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line);
-  background:#fff; color:#var(--text); outline:none;
+  background:#fff; color: var(--text); outline:none;
 }
 textarea{resize:vertical; min-height:110px}
 button{
