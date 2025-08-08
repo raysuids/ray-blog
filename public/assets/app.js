@@ -1,4 +1,3 @@
-// 列表 / 分頁 + 站點設定（含 hero 圖片）
 const $ = (s)=>document.querySelector(s);
 const postsEl = $('#posts');
 const prevBtn = $('#prev');
@@ -34,7 +33,7 @@ async function load(){
   const d = await r.json().catch(()=>({items:[], total:0}));
   total = d.total || 0;
   postsEl.innerHTML = (d.items||[]).map(p => `
-    <article class="card post-card" data-animate onclick="location.href='/post.html?id=${p.id}'">
+    <article class="card post-card" data-animate onclick="location.href='/post?id=${p.id}'">
       <h3 class="post-title">${p.title}</h3>
       <div class="post-meta">${new Date(p.created_at).toLocaleString()}</div>
       ${p.cover_url ? `<img class="post-cover" src="${p.cover_url}" alt="封面"/>` : ''}

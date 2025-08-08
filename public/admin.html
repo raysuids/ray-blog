@@ -57,7 +57,7 @@
           <span class="title">${p.title}</span>
           <span class="time">${new Date(p.created_at).toLocaleString()}</span>
           <span class="ops">
-            <a href="/post.html?id=${p.id}" target="_blank">查看</a>
+            <a href="/post?id=${p.id}" target="_blank">查看</a>
             <button data-edit="${p.id}" class="mini">編輯</button>
             <button data-del="${p.id}" class="mini danger">刪除</button>
           </span>
