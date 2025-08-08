@@ -1,5 +1,5 @@
-import { json, text } from '../_utils';
-import { isAuthed } from '../'_auth';
+import { json, text } from '../../_utils';
+import { isAuthed } from '../../_auth';
 interface Env { DB: D1Database; ADMIN_KEY: string }
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   const rows = await env.DB.prepare('SELECT key, value FROM settings').all<{key:string,value:string}>();
