@@ -1,4 +1,4 @@
-// 列表 / 分頁 + 讀取站點設定（含 hero 圖片）
+// 列表 / 分頁 + 站點設定（含 hero 圖片）
 const $ = (s)=>document.querySelector(s);
 const postsEl = $('#posts');
 const prevBtn = $('#prev');

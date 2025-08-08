@@ -3,13 +3,8 @@ import { isAuthed } from '../../_auth';
 interface Env { DB: D1Database; ADMIN_KEY: string }
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   const rows = await env.DB.prepare('SELECT key, value FROM settings').all<{key:string,value:string}>();
-  const map: Record<string, string> = {};
-  (rows.results || []).forEach(r => { map[r.key] = r.value; });
-  return json({
-    site_title: map['site_title'] || '我的部落格',
-    site_subtitle: map['site_subtitle'] || '分享想法與記錄',
-    hero_image: map['hero_image'] || ''
-  });
+  const map: Record<string, string> = {}; (rows.results || []).forEach(r => { map[r.key] = r.value; });
+  return json({ site_title: map['site_title'] || '我的部落格', site_subtitle: map['site_subtitle'] || '分享想法與記錄', hero_image: map['hero_image'] || '' });
 };
 export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
   if (!(await isAuthed(env, request))) return text('未授權', 401);

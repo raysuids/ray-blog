@@ -1,13 +1,11 @@
 import { json, text, isPreflight } from '../../_utils';
 import { isAuthed } from '../../_auth';
 interface Env { DB: D1Database; ADMIN_KEY: string }
-export const onRequestOptions: PagesFunction<Env> = async () => new Response(null, {
-  headers: {
-    "access-control-allow-origin": "*",
-    "access-control-allow-headers": "content-type, x-admin-key, x-admin-token",
-    "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS"
-  }
-});
+export const onRequestOptions: PagesFunction<Env> = async () => new Response(null, { headers: {
+  "access-control-allow-origin": "*",
+  "access-control-allow-headers": "content-type, x-admin-key, x-admin-token",
+  "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS"
+}});
 export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   const url = new URL(request.url);
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
@@ -25,8 +23,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
   const content = (body.content || '').toString().trim();
   const cover_url = (body.cover_url || '').toString().trim();
   if (!title || !content) return text('缺少標題或內容', 400);
-  const id = crypto.randomUUID();
-  const created_at = Date.now();
+  const id = crypto.randomUUID(); const created_at = Date.now();
   await env.DB.prepare('INSERT INTO posts (id, title, content, created_at, cover_url) VALUES (?, ?, ?, ?, ?)')
     .bind(id, title, content, created_at, cover_url || null).run();
   return json({ id, title, created_at, cover_url });
