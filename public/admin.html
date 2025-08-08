@@ -18,6 +18,11 @@
     const bodyInp = $('#content');
     const keyInp = $('#key');
 
+    // settings
+    const sTitle = $('#s_title');
+    const sSubtitle = $('#s_subtitle');
+    const sSave = $('#s_save');
+
     function setStatus(t){ statusEl.textContent = t; }
     function setAuthed(yes){ document.body.classList.toggle('authed', !!yes); }
 
@@ -30,14 +35,14 @@
       localStorage.setItem('admin_token', token);
       tokenInp.value = token;
       setAuthed(true);
-      loadList();
+      await Promise.all([loadList(), loadSettings()]);
     }
 
     async function verify(){
       const t = localStorage.getItem('admin_token') || '';
       if(!t) return setAuthed(false);
       const r = await fetch('/admin/verify', { headers: { 'x-admin-token': t }});
-      if(r.ok){ tokenInp.value = t; setAuthed(true); loadList(); }
+      if(r.ok){ tokenInp.value = t; setAuthed(true); await Promise.all([loadList(), loadSettings()]); }
       else setAuthed(false);
     }
 
@@ -107,6 +112,21 @@
       setTimeout(()=>setStatus(''), 800);
     });
 
+    async function loadSettings(){
+      const r = await fetch('/api/settings');
+      const d = await r.json().catch(()=>({}));
+      sTitle.value = d.site_title || '我的部落格';
+      sSubtitle.value = d.site_subtitle || '分享想法與記錄';
+    }
+
+    sSave.addEventListener('click', async ()=>{
+      const t = localStorage.getItem('admin_token') || '';
+      const payload = { site_title: sTitle.value.trim(), site_subtitle: sSubtitle.value.trim() };
+      const r = await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json','x-admin-token': t}, body: JSON.stringify(payload) });
+      if(!r.ok){ alert('保存失敗'); return; }
+      alert('已保存');
+    });
+
     logoutBtn.addEventListener('click', ()=>{
       localStorage.removeItem('admin_token'); setAuthed(false);
     });
@@ -119,6 +139,9 @@
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="/">R</a>
+      <nav class="nav">
+        <a class="nav-link" href="/">首頁</a>
+      </nav>
     </div>
   </header>
 
@@ -146,6 +169,7 @@
 
       <div class="flex">
         <div class="left">
+          <h3>文章列表</h3>
           <ul id="list" class="list"></ul>
         </div>
         <div class="right">
@@ -157,6 +181,16 @@
           </form>
         </div>
       </div>
+
+      <hr/>
+      <div class="settings">
+        <h3>站點設定</h3>
+        <label>站點標題 <input id="s_title" placeholder="我的部落格" /></label>
+        <label>站點副標題 <input id="s_subtitle" placeholder="分享想法與記錄" /></label>
+        <button id="s_save">保存設定</button>
+        <p class="muted">首頁的大標題與副標題會從資料庫讀取。</p>
+      </div>
+
     </section>
   </main>
 </body>

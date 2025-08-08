@@ -1,4 +1,4 @@
--- D1 schema 初始化（Pro）
+-- 0001: 基本表
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_search ON posts(title, content);
+
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   post_id TEXT NOT NULL,

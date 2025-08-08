@@ -7,42 +7,55 @@
   <link rel="stylesheet" href="/assets/style.css" />
   <script type="module">
     const $ = (s)=>document.querySelector(s);
-    const params = new URLSearchParams(location.search);
-    const id = params.get('id');
-    const titleEl = document.getElementById('t');
-    const bodyEl = document.getElementById('body');
-    const metaEl = document.getElementById('meta');
-    const listEl = document.getElementById('comments');
-    const form = document.getElementById('cform');
+    function getId(){
+      const p = new URLSearchParams(location.search).get('id');
+      if(p) return p;
+      const hash = new URLSearchParams(location.hash.replace(/^#/, '')).get('id');
+      if(hash) return hash;
+      const m = location.pathname.match(/post\.html\/(.+)$/);
+      return m ? m[1] : null;
+    }
+    const id = getId();
+    const titleEl = $('#t');
+    const hEl = $('#h');
+    const bodyEl = $('#body');
+    const metaEl = $('#meta');
+    const listEl = $('#comments');
+    const form = $('#cform');
 
     const admin = {
       get token(){ return localStorage.getItem('admin_token') || ''; },
       get isAuthed(){ return !!localStorage.getItem('admin_token'); }
     };
 
-    async function load() {
-      const r = await fetch(`/api/posts/${id}`);
-      if(!r.ok){ bodyEl.textContent = '找不到文章'; return; }
-      const d = await r.json();
-      titleEl.textContent = d.title + ' · Ray';
-      $('#h').textContent = d.title;
-      metaEl.textContent = new Date(d.created_at).toLocaleString();
-      bodyEl.innerHTML = (d.content||'').replace(/\n/g,'<br/>');
-      if(admin.isAuthed){
-        const bar = document.getElementById('admin-bar');
-        bar.classList.remove('hide');
-        document.getElementById('edit-btn').onclick = ()=>{
-          const t = prompt('新標題', d.title);
-          if(t===null) return;
-          const c = prompt('新內容', d.content);
-          if(c===null) return;
-          updatePost(t, c);
-        };
-        document.getElementById('del-btn').onclick = ()=>{
-          if(confirm('確定刪除這篇文章？')) delPost();
-        };
+    async function load(){
+      if(!id){ bodyEl.textContent = '缺少文章 ID'; return; }
+      try{
+        const r = await fetch(`/api/posts/${id}`);
+        if(!r.ok){ bodyEl.textContent = '找不到文章'; return; }
+        const d = await r.json();
+        titleEl.textContent = d.title + ' · Ray';
+        hEl.textContent = d.title;
+        metaEl.textContent = new Date(d.created_at).toLocaleString();
+        bodyEl.innerHTML = (d.content||'').replace(/</g,'&lt;').replace(/\n/g,'<br/>');
+        if(admin.isAuthed){
+          const bar = document.getElementById('admin-bar');
+          bar.classList.remove('hide');
+          document.getElementById('edit-btn').onclick = ()=>{
+            const t = prompt('新標題', d.title);
+            if(t===null) return;
+            const c = prompt('新內容', d.content);
+            if(c===null) return;
+            updatePost(t, c);
+          };
+          document.getElementById('del-btn').onclick = ()=>{
+            if(confirm('確定刪除這篇文章？')) delPost();
+          };
+        }
+        await loadComments();
+      }catch(e){
+        bodyEl.textContent = '載入失敗，稍後再試';
       }
-      await loadComments();
     }
 
     async function updatePost(title, content){
@@ -69,7 +82,7 @@
           <div class="comment-body">\${(c.body||'').replace(/</g,'&lt;')}</div>
           \${admin.isAuthed ? '<button class="mini danger" data-del="'+c.id+'">刪除</button>' : ''}
         </li>\`
-      ).join('') || '<li>暫無留言</li>';
+      ).join('') || '<li class="muted">暫無留言</li>';
 
       if(admin.isAuthed){
         document.querySelectorAll('[data-del]').forEach(btn=>{
@@ -111,6 +124,10 @@
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="/">R</a>
+      <nav class="nav">
+        <a href="/" class="nav-link">首頁</a>
+        <a href="/admin.html" class="nav-link">管理</a>
+      </nav>
     </div>
   </header>
   <main class="container">

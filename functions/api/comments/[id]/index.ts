@@ -1,5 +1,5 @@
-import { text } from '../../../_utils';
-import { isAuthed } from '../../../_auth';
+import { text } from '../../_utils';
+import { isAuthed } from '../../_auth';
 interface Env { DB: D1Database; ADMIN_KEY: string }
 export const onRequestDelete: PagesFunction<Env> = async ({ env, request, params }) => {
   if (!(await isAuthed(env, request))) return text('未授權', 401);
